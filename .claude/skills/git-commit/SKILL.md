@@ -6,6 +6,8 @@ allowed-tools: Bash
 
 개인 공부 저장소라 브랜치 전략 없이 현재 브랜치(`main`)에 바로 커밋한다.
 
+`me/`(처방전·커리큘럼·계획표)와 `log/`(퀴즈·세션 기록)는 gitignore된 개인 파일이라 커밋 대상이 아니다.
+
 ## 커밋 메시지 규칙
 
 형식: `type(scope): 설명`
@@ -16,13 +18,12 @@ allowed-tools: Bash
   | 경로 | scope |
   | --- | --- |
   | `notes/<stage>/...` | 폴더 이름 그대로 (예: `linear-algebra`, `network`) |
-  | `log/quiz.tsv` | `log` |
   | `tools/` | `tools` |
   | `.claude/skills/<name>/` | `<name>` |
   | 여러 영역에 걸친 변경 | `global` |
 
 - **설명** (한국어): 마침표 없음, 명사형 종결. `~한다/~된다`, `~하기`, `~합니다/~됩니다`, `~했습니다` 금지
-  - 좋은 예: `add(linear-algebra): 랭크 정리 노트 추가`, `fix(network): TCP 윈도우 스케일 설명 정정`, `add(notes): 커리큘럼 단계별 폴더 추가`, `update(log): 퀴즈 기록 추가`
+  - 좋은 예: `add(linear-algebra): 랭크 정리 노트 추가`, `fix(network): TCP 윈도우 스케일 설명 정정`, `add(notes): 커리큘럼 단계별 폴더 추가`
 - 제목 한 줄만 (본문 없음)
 
 ## 커밋 흐름
