@@ -45,27 +45,12 @@ AI를 가이드로 삼아 "겉핥기"를 끝내기 위한 공부 저장소.
 
 ## 과목 지도
 
-```mermaid
-graph TD
-  LA[선형대수] --> CG[컴퓨터 그래픽스]
-  DM[이산수학] --> ALG[자료구조/알고리즘]
-  SYS[컴퓨터 시스템 CS:APP] --> CG
-  SYS --> OS[운영체제] --> NET[네트워크]
-  CG --> WG[웹 그래픽스 WebGPU]
-  NET --> WG
-  EN[영어 = 원문 읽기] -.-> LA & CG & NET
-```
+전체 커리큘럼은 [`CURRICULUM.md`](CURRICULUM.md)에 있다. 수학만 하면 포기하기 쉬워서 두 트랙을 병행한다.
 
-| 과목 | 1차 자료 | 앵커 프로젝트 |
-| --- | --- | --- |
-| 선형대수 | 3Blue1Brown *Essence of Linear Algebra* → Strang MIT 18.06 | 래스터라이저 변환 파이프라인 |
-| 컴퓨터 그래픽스 | ssloy/tinyrenderer, *Ray Tracing in One Weekend* | 직접 구현 |
-| 웹 그래픽스 | webgpufundamentals.org | 위 렌더러를 WebGPU로 포팅 |
-| 이산수학 | MIT 6.042J *Mathematics for Computer Science* | 알고리즘 문제 증명 |
-| CS 기초 | CS:APP, OSTEP (teachyourselfcs 기준) | 렌더러 성능 측정/최적화 |
-| 네트워크 | Kurose & Ross *Top-Down*, RFC 원문 | 웹 그래픽스 데모 배포/스트리밍 |
+- **트랙 A · 앵커 프로젝트 (주 3일)**: 선형대수 + 소프트웨어 렌더러 → 그래픽스 이론 + 레이트레이싱 → Three.js Journey + TSL·WebGPU → WebXR → 인터랙션 → 캡스톤. 렌더러 하나를 계속 키운다.
+- **트랙 B · CS 기초 (주 2일)**: CS:APP → 이산수학 + 알고리즘 → OSTEP → 네트워크 → 데이터베이스. 과목당 주 자료 하나만 쓴다.
 
-첫 4주 제안: **선형대수 + tinyrenderer** 병행. 4주 뒤 `stats.py` 결과와 체감으로 습관 3 가설을 평가한다.
+시작: **A1(3Blue1Brown + tinyrenderer)과 B1(CS:APP)을 동시에.** 4주마다 `stats.py` 결과와 체감을 보고 비율과 범위를 조정한다.
 
 ## 하루 루틴
 
