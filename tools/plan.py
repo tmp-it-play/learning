@@ -4,12 +4,13 @@ usage:
   python3 tools/plan.py next                          # /study 가 다음에 할 항목 1개
   python3 tools/plan.py today                         # 오늘 남은 예산과 일정
   python3 tools/plan.py progress                      # 단계별 진척, 보정 계수, 남은 공부일
-  python3 tools/plan.py log <id> <분> <정답률%> <done|partial>
+  python3 tools/plan.py log <id> <분> <정답률%> <done|partial>   # 계획 밖 주제는 id 를 x:<concept> 로
   python3 tools/plan.py test
 
 규칙:
 - 하루 예산 DAILY_MIN 분을 트랙 A:B = A_SHARE:(1-A_SHARE) 로 나눈다.
 - next: 오늘 예산 대비 덜 쓴 트랙에서, 아직 done 이 아닌 첫 항목.
+- 계획 밖 세션(x:...)은 트랙 X 로 잡혀 트랙 예산은 안 줄이지만, 하루 총 예산에는 포함된다.
 - done 은 세션 끝에 정답률 >= PASS_PCT 이고 그 항목 분량을 끝냈을 때만 기록한다(skill 이 판단).
 - 보정 계수 k = done 항목의 실제 분 합 / 예상 분 합. 남은 시간 예측에 곱한다.
 """
@@ -62,13 +63,15 @@ def used_today(plan, sessions, today):
     used = defaultdict(int)
     for s in sessions:
         if s["date"] == today:
-            used[track.get(s["id"], "?")] += int(s["minutes"])
+            used[track.get(s["id"], "X")] += int(s["minutes"])
     return used
 
 
 def next_item(plan, sessions, today):
     spent, done, k = state(plan, sessions)
     used, budget = used_today(plan, sessions, today), budgets()
+    if sum(used.values()) >= DAILY_MIN:
+        return None, 0
     tracks = sorted(budget, key=lambda t: (used[t] / budget[t], t))
     for t in tracks:
         if used[t] >= budget[t]:
@@ -112,7 +115,7 @@ def progress(plan, sessions):
 def log(args):
     pid, minutes, acc, status = args
     assert status in ("done", "partial"), status
-    assert any(p["id"] == pid for p in read(PLAN)), f"plan.tsv 에 없는 id: {pid}"
+    assert pid.startswith("x:") or any(p["id"] == pid for p in read(PLAN)), f"plan.tsv 에 없는 id: {pid} (계획 밖이면 x:<concept>)"
     if status == "done" and int(acc) < PASS_PCT:
         sys.exit(f"정답률 {acc}% < {PASS_PCT}% 이므로 done 이 아니라 partial 로 기록해야 함")
     new = not SESSIONS.exists()
@@ -142,9 +145,12 @@ def demo():
     assert tp["A"][0] == 90 and tp["A"][2][0][0]["id"] == "A-2" and tp["A"][2][0][1] == 150
     rows, _, days = progress(plan, s)
     assert rows[0][2:] == (1, 2, 150) and days == {"A": 1, "B": 1}
-    over = [{"date": d, "id": "A-1", "minutes": "999", "accuracy": "0", "status": "partial"}]
+    over = [{"date": d, "id": "A-1", "minutes": "300", "accuracy": "0", "status": "partial"}]
     assert next_item(plan, over, d)[0]["id"] == "B-1"  # A 예산 소진
     assert remaining(plan[0], state(plan, over)[0], 1.0) == 50  # 예상 초과 미완료 → 한 세션
+    adhoc = [{"date": d, "id": "x:quaternion", "minutes": "500", "accuracy": "90", "status": "done"}]
+    assert used_today(plan, adhoc, d)["X"] == 500 and next_item(plan, adhoc, d)[0] is None  # 계획 밖도 하루 총량에 포함
+    assert state(plan, adhoc)[2] == 1.0  # 보정 계수에는 영향 없음
 
 
 if __name__ == "__main__":
@@ -161,6 +167,9 @@ if __name__ == "__main__":
         else:
             print(f"{p['id']}\t{p['stage']}\t{p['concept']}\t{p['title']}\t{p['source']}\t남은 약 {need}분")
     elif cmd == "today":
+        x = used_today(plan, sessions, today)["X"]
+        if x:
+            print(f"## 계획 밖: {x}분 사용 (하루 총 {DAILY_MIN}분에 포함)")
         for t, (used, budget, items) in today_plan(plan, sessions, today).items():
             print(f"## 트랙 {t}: {used}/{budget}분 사용")
             for p, take, need in items:
