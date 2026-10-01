@@ -1,3 +1,5 @@
 .obsidian/
 .claude/md-log.json
 __pycache__/
+me/
+log/
