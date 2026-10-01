@@ -13,6 +13,8 @@ INTERVALS = [1, 3, 7, 14, 30, 60]  # 연속 정답 수 → 다음 복습까지 �
 
 
 def load(path=LOG):
+    if not path.exists():
+        return []
     with open(path, newline="") as f:
         return list(csv.DictReader(f, delimiter="\t"))
 

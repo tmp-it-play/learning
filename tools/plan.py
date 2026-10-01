@@ -1,4 +1,4 @@
-"""plan.tsv + log/sessions.tsv 로 오늘 공부할 것을 정량적으로 정한다.
+"""me/plan.tsv + me/config.json + log/sessions.tsv 로 오늘 공부할 것을 정량적으로 정한다.
 
 usage:
   python3 tools/plan.py next                          # /study 가 다음에 할 항목 1개
@@ -8,24 +8,25 @@ usage:
   python3 tools/plan.py test
 
 규칙:
-- 하루 예산 DAILY_MIN 분을 트랙 A:B = A_SHARE:(1-A_SHARE) 로 나눈다.
+- 하루 예산 daily_min 분을 config 의 tracks 비율로 나눈다 (예: {"A": 0.6, "B": 0.4}).
 - next: 오늘 예산 대비 덜 쓴 트랙에서, 아직 done 이 아닌 첫 항목.
 - 계획 밖 세션(x:...)은 트랙 X 로 잡혀 트랙 예산은 안 줄이지만, 하루 총 예산에는 포함된다.
-- done 은 세션 끝에 정답률 >= PASS_PCT 이고 그 항목 분량을 끝냈을 때만 기록한다(skill 이 판단).
+- done 은 세션 끝에 정답률 >= pass_pct 이고 그 항목 분량을 끝냈을 때만 기록한다(skill 이 판단).
 - 보정 계수 k = done 항목의 실제 분 합 / 예상 분 합. 남은 시간 예측에 곱한다.
 """
-import csv, sys
+import csv, json, sys
 from collections import defaultdict
 from datetime import date
 from math import ceil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PLAN = ROOT / "plan.tsv"
+PLAN = ROOT / "me" / "plan.tsv"
+CONFIG = ROOT / "me" / "config.json"
 SESSIONS = ROOT / "log" / "sessions.tsv"
-DAILY_MIN = 500  # 10시간 = 50분 세션 10회 + 휴식. 휴식 빼고 순수 공부 시간
-A_SHARE = 0.6    # 트랙 A:B = 3:2
-PASS_PCT = 80    # 완료 기준 정답률 (모르겠음은 오답으로 계산)
+# 개인 설정은 me/config.json (/onboard 가 만든다). 없으면 이 기본값
+DEFAULTS = {"daily_min": 500, "tracks": {"A": 0.6, "B": 0.4}, "pass_pct": 80}
+CFG = {**DEFAULTS, **(json.loads(CONFIG.read_text()) if CONFIG.exists() else {})}
 FIELDS = ["date", "id", "minutes", "accuracy", "status"]
 
 
@@ -54,8 +55,7 @@ def remaining(p, spent, k):
 
 
 def budgets():
-    a = round(DAILY_MIN * A_SHARE)
-    return {"A": a, "B": DAILY_MIN - a}
+    return {t: round(CFG["daily_min"] * share) for t, share in CFG["tracks"].items()}
 
 
 def used_today(plan, sessions, today):
@@ -70,7 +70,7 @@ def used_today(plan, sessions, today):
 def next_item(plan, sessions, today):
     spent, done, k = state(plan, sessions)
     used, budget = used_today(plan, sessions, today), budgets()
-    if sum(used.values()) >= DAILY_MIN:
+    if sum(used.values()) >= CFG["daily_min"]:
         return None, 0
     tracks = sorted(budget, key=lambda t: (used[t] / budget[t], t))
     for t in tracks:
@@ -116,8 +116,8 @@ def log(args):
     pid, minutes, acc, status = args
     assert status in ("done", "partial"), status
     assert pid.startswith("x:") or any(p["id"] == pid for p in read(PLAN)), f"plan.tsv 에 없는 id: {pid} (계획 밖이면 x:<concept>)"
-    if status == "done" and int(acc) < PASS_PCT:
-        sys.exit(f"정답률 {acc}% < {PASS_PCT}% 이므로 done 이 아니라 partial 로 기록해야 함")
+    if status == "done" and int(acc) < CFG["pass_pct"]:
+        sys.exit(f"정답률 {acc}% < {CFG['pass_pct']}% 이므로 done 이 아니라 partial 로 기록해야 함")
     new = not SESSIONS.exists()
     with open(SESSIONS, "a", newline="") as f:
         w = csv.writer(f, delimiter="\t")
@@ -127,6 +127,7 @@ def log(args):
 
 
 def demo():
+    CFG.update(DEFAULTS)  # 개인 설정과 무관하게 검사
     plan = [
         {"id": "A-1", "track": "A", "stage": "la", "est_min": "60"},
         {"id": "A-2", "track": "A", "stage": "la", "est_min": "100"},
@@ -151,12 +152,16 @@ def demo():
     adhoc = [{"date": d, "id": "x:quaternion", "minutes": "500", "accuracy": "90", "status": "done"}]
     assert used_today(plan, adhoc, d)["X"] == 500 and next_item(plan, adhoc, d)[0] is None  # 계획 밖도 하루 총량에 포함
     assert state(plan, adhoc)[2] == 1.0  # 보정 계수에는 영향 없음
+    CFG.update(daily_min=300, tracks={"A": 1/3, "B": 1/3, "C": 1/3})
+    assert budgets() == {"A": 100, "B": 100, "C": 100}  # 트랙 수는 설정 나름
 
 
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "today"
     if cmd == "test":
         demo(); print("ok"); sys.exit()
+    if not PLAN.exists() and cmd != "log":
+        sys.exit("me/plan.tsv 가 없다. 먼저 /onboard 를 실행할 것")
     plan, sessions, today = read(PLAN), read(SESSIONS), date.today().isoformat()
     if cmd == "log":
         log(sys.argv[2:])
@@ -169,7 +174,7 @@ if __name__ == "__main__":
     elif cmd == "today":
         x = used_today(plan, sessions, today)["X"]
         if x:
-            print(f"## 계획 밖: {x}분 사용 (하루 총 {DAILY_MIN}분에 포함)")
+            print(f"## 계획 밖: {x}분 사용 (하루 총 {CFG['daily_min']}분에 포함)")
         for t, (used, budget, items) in today_plan(plan, sessions, today).items():
             print(f"## 트랙 {t}: {used}/{budget}분 사용")
             for p, take, need in items:
