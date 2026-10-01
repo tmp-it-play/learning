@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/tools/md_log.py\" hook" }] }
+    ],
+    "PreToolUse": [
+      { "matcher": "AskUserQuestion", "hooks": [{ "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/tools/md_log.py\" hook" }] }
+    ],
+    "PostToolUse": [
+      { "matcher": "AskUserQuestion", "hooks": [{ "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/tools/md_log.py\" hook" }] }
+    ],
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/tools/md_log.py\" hook" }] }
+    ]
+  }
+}
