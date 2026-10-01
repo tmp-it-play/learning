@@ -1,1 +1,4 @@
 date	topic	concept	result	confidence	note
+2026-10-01	선형 변환과 행렬	basis-determines-linear-map	?	-	T(i),T(j)로 결정됨을 모름
+2026-10-01	선형 변환과 행렬	linearity-definition	?	-	affine(2x+1)이 선형인지 모름
+2026-10-01	선형 변환과 행렬	vector-linear-combination	?	-	스칼라배+덧셈 계산 모름 → 벡터부터 시작
