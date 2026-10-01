@@ -3,13 +3,16 @@
 터미널은 수식·mermaid 를 못 그리니, 같은 내용을 파일에 써서 Obsidian 에서 렌더링해 읽는다.
 담는 것: 사용자 입력, Claude 의 글, AskUserQuestion 질문과 답. 다른 도구 호출은 뺀다.
 
+세션 로그는 log/sessions/ 에 따로 쓴다. notes/ 는 마무리 때 정리한 개념만 둔다.
+link 한 세션(CLAUDE_CODE_SESSION_ID)의 hook 만 쓴다. 다른 세션이 덮어쓰지 않게.
+
 usage:
-  python3 tools/md_log.py link <file.md>   # 이 파일로 기록 시작 (있으면 기존 내용 아래에 이어 붙임)
+  python3 tools/md_log.py link <file.md>   # 이 세션의 기록을 이 파일로 시작
   python3 tools/md_log.py unlink           # 기록 중지
   python3 tools/md_log.py hook             # Claude Code hook (stdin: hook JSON)
   python3 tools/md_log.py test
 """
-import json, re, sys
+import json, os, re, sys
 from datetime import date
 from pathlib import Path
 
@@ -95,15 +98,15 @@ def hook():
         except ValueError:
             pass  # 쓰는 중인 마지막 줄
     link = json.loads(LINK.read_text())
+    if not mine(link, event):
+        return
     target = ROOT / link["file"]
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(page(link, render(rows, event)))
+    target.write_text(f"# 세션 기록 ({link['date']})\n\n" + render(rows, event))
 
 
-def page(link, body):
-    """link 시점의 기존 노트 내용은 그대로 두고, 그 아래에 이번 세션 기록을 붙인다."""
-    keep = link.get("keep", "").rstrip()
-    return (keep + "\n\n" if keep else "") + f"## 세션 기록 ({link['date']})\n\n" + body
+def mine(link, event):
+    return link.get("session") == event.get("session_id")
 
 
 def demo():
@@ -128,19 +131,15 @@ def demo():
     assert render(rows, post).count("ANSWER") == 1  # transcript 에 이미 있으면 중복 없음
     pre = {"hook_event_name": "PreToolUse", "tool_name": "AskUserQuestion", "tool_use_id": "t9", "tool_input": q}
     assert render(rows, pre).count("QUIZ") == 2
-    old = {"file": "x.md", "date": "2026-10-02", "keep": "# 선형 변환\n\n## 내 설명\n기존 내용\n"}
-    p = page(old, "본문\n")
-    assert p.startswith("# 선형 변환") and "기존 내용\n\n## 세션 기록 (2026-10-02)\n\n본문" in p
-    assert page({"date": "2026-10-02"}, "본문\n") == "## 세션 기록 (2026-10-02)\n\n본문\n"
+    assert mine({"session": "a"}, {"session_id": "a"})
+    assert not mine({"session": "a"}, {"session_id": "b"}) and not mine({}, {"session_id": "b"})
 
 
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
     if cmd == "link":
-        f = ROOT / sys.argv[2]
-        # hook 은 파일을 통째로 다시 쓴다. 기존 노트는 keep 에 보관해 그대로 두고 아래에 이어 붙인다
-        keep = f.read_text() if f.exists() else ""
-        LINK.write_text(json.dumps({"file": sys.argv[2], "date": date.today().isoformat(), "keep": keep}, ensure_ascii=False))
+        sid = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+        LINK.write_text(json.dumps({"file": sys.argv[2], "date": date.today().isoformat(), "session": sid}, ensure_ascii=False))
         print(f"md-log → {sys.argv[2]}")
     elif cmd == "unlink":
         LINK.unlink(missing_ok=True)
