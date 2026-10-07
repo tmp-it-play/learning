@@ -42,3 +42,4 @@ graph TD
 ## 세션
 
 - [2026-10-01](../../log/sessions/2026-10-01-1550-vectors.md)
+- [2026-10-02 재채점](../../log/sessions/2026-10-02-0943-vectors.md)
